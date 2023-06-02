@@ -1,0 +1,79 @@
+---
+title: "25->20 mph streets"
+author: "Patrick Spauster"
+date: "6/2/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(RSocrata)
+library(sf)
+
+```
+
+```{r}
+
+speed_limits <- read.socrata("https://data.cityofnewyork.us/resource/r6fm-v9ag.csv") %>% 
+  st_as_sf(wkt = "the_geom")
+
+crash_data <- read.socrata("https://data.cityofnewyork.us/resource/h9gi-nx95.csv?$where=crash_date > '2018-12-31T00:00:00.000'")
+
+crash_data_sf <- crash_data %>% 
+  filter(!is.na(latitude)) %>% 
+  st_as_sf(coords = c("longitude", "latitude"))
+
+#use this to backfill borough for the 200k missing borough
+
+boroughs <- read.socrata("https://data.cityofnewyork.us/resource/7t3b-ywvw.csv")%>% 
+  st_as_sf(wkt = "the_geom")
+
+```
+
+
+Group by borough to eliminate duplicate street names
+```{r}
+
+speed_limits_borough <- st_intersection(speed_limits, boroughs)
+
+streets_speeds <- speed_limits_borough %>% as.data.frame() %>% 
+  group_by(boro_name, street) %>% 
+  summarize(min_speed = min(postvz_sl, na.rm = T),
+            max_speed = min(postvz_sl, na.rm = T),
+            length_25 = sum(shape_leng[postvz_sl == 25], na.rm = T),
+            length_total = sum(shape_leng, na.rm = T)) %>% 
+  mutate(prop_25 = length_25/length_total,
+         borough = toupper(boro_name))
+
+
+```
+
+Match to the street data 
+```{r}
+
+crash_data_clean <- crash_data %>%
+  mutate(number = str_extract(cross_street_name, "\\b\\d+(?:-\\d+)?\\b"),
+         alt_street = trimws(str_replace(cross_street_name, "\\b\\d+(?:-\\d+)?\\s*(?=\\D)", "")),
+         on_street_name = trimws(if_else(on_street_name=="", alt_street, on_street_name)))
+
+crashes_streets_speed <- streets_speeds %>% 
+  left_join(crash_data_clean, by = c("borough" = "borough", "street" = "on_street_name"))
+
+misses <- anti_join(crash_data_clean, streets_speeds, by = c("borough" = "borough", "on_street_name" = "street"))
+
+#check the integrity of this join
+
+street_sum <- crashes_streets_speed %>% 
+  group_by(borough, street) %>% 
+  summarize(prop_25 = first(prop_25),
+            total_crashes = n(),
+            length_total = first(length_total),
+            unsafe_speed_crashes = sum(
+              contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed",
+              na.rm = T)
+            )
+
+```
+
