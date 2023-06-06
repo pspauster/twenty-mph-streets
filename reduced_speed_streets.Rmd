@@ -54,6 +54,17 @@ crash_data_missing_boro <- crash_data_sf %>%
 
 
 ```
+Stats for blog
+
+```{r}
+crash_data %>% count(contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed")
+
+crash_data %>% filter(contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed") %>% 
+  summarize(killed = sum(number_of_persons_killed),
+            injured = sum(number_of_cyclist_injured))
+```
+
+
 
 
 Group by borough to eliminate duplicate street names
@@ -110,12 +121,33 @@ street_sum <- crashes_streets_speed %>%
             length_total = first(length_total),
             unsafe_speed_crashes = sum(
               contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed",
-              na.rm = T)
+              na.rm = T),
+            killed = sum(number_of_persons_killed),
+            injured = sum(number_of_persons_injured),
+            killed_speed = sum(number_of_persons_killed[contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed"]),
+            injured_speed = sum(number_of_persons_injured[contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed"])
             ) %>% 
   mutate(crash_pmile = total_crashes/length_total,
          speedcrash_pmile = unsafe_speed_crashes/length_total)
 
 ```
+Stat for blog
+```{r}
+street_sum %>% as.data.frame() %>%  filter(prop_25 >= .7) %>% summarize(crashes = sum(unsafe_speed_crashes),
+                                                                        tcrashes = sum(total_crashes))
+
+street_sum %>% as.data.frame() %>%  filter(prop_25 >= .7) %>%
+  group_by(street %in% top50$street) %>%
+  summarize(crashes = sum(unsafe_speed_crashes),
+                        tcrashes = sum(total_crashes),
+            length = sum(length_total),
+            n = n()) %>% 
+  janitor::adorn_totals()
+
+```
+
+
+
 Pick out the top 50 in crashes per mile and total crashes
 ```{r}
 
@@ -126,6 +158,8 @@ top50 <- street_sum %>%
 
 write_csv(top50, "top50_speedcrashpmile.csv")
 
+top50 %>% as.data.frame() %>%  summarize(crashes = sum(unsafe_speed_crashes),
+                                         tcrashes = sum(total_crashes))
 
 ```
 
@@ -157,7 +191,7 @@ tag.map.title <- tags$style(HTML("
 "))
 
 title <- tags$div(
-  tag.map.title, HTML("<h2>NYC's dangerous 25mph streets</h2><br><p>25mph streets with the most collisions per mile caused by unsafe speed<br><span>Select a street</span> to view the number of collisions since 2019</p>")
+  tag.map.title, HTML("<h2>NYC's dangerous 25mph streets</h2><br><p>25 mph streets with the most collisions per mile caused by unsafe speed<br><span>Select a street</span> to view the number of collisions since 2019</p>")
 )  
 
 top50_map <- leaflet(top50, options = leafletOptions(zoomControl = FALSE)) %>% 
