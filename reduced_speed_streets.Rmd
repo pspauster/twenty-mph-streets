@@ -4,7 +4,7 @@ author: "Patrick Spauster"
 date: "6/2/2023"
 output: html_document
 ---
-
+Set up Libraries
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -16,6 +16,7 @@ library(htmltools)
 
 ```
 
+Read in all the data
 ```{r}
 
 speed_limits <- read.socrata("https://data.cityofnewyork.us/resource/r6fm-v9ag.csv") %>% 
@@ -32,6 +33,7 @@ boroughs <- read.socrata("https://data.cityofnewyork.us/resource/7t3b-ywvw.csv")
 
 counties <- c("005", "047", "061", "081", "085")
 
+#the open data boroughs dataset is not working? It's fire districts instead
 boroughs <- tigris::counties(state = "NY", cb = TRUE) %>% 
   filter(COUNTYFP %in% counties) %>% 
   mutate(boro_name = case_when(
@@ -42,7 +44,7 @@ boroughs <- tigris::counties(state = "NY", cb = TRUE) %>%
   )) %>% 
   st_set_crs(st_crs(crash_data_sf))
 
-#use this to backfill borough for the 200k missing borough
+#use this to backfill borough for the ~200k missing borough
 crash_data_missing_boro <- crash_data_sf %>%
   filter(borough == "" | is.na(borough)) %>% 
   st_join(boroughs, left = T) %>% 
@@ -95,15 +97,13 @@ crashes_streets_speed <- streets_speeds %>%
   left_join(crash_data_clean, by = c("borough" = "borough", "street" = "on_street_name"))
 
 misses <- anti_join(crash_data_clean, streets_speeds, by = c("borough" = "borough", "on_street_name" = "street")) %>% 
-  filter(!(is.na(longitude) & is.na(borough)),!((is.na(borough)&latitude==0)))
-
-#check the integrity of this join
+  filter(!(is.na(longitude) & is.na(borough)),!((is.na(borough)&latitude==0))) #these have no location data
+#most of these misses are on highways or they have missing location information
 ```
 
 
 ```{r}
 street_sum <- crashes_streets_speed %>% 
-  #as.data.frame() %>% 
   group_by(borough, street) %>% 
   summarize(prop_25 = first(prop_25),
             total_crashes = n(),
@@ -116,31 +116,51 @@ street_sum <- crashes_streets_speed %>%
          speedcrash_pmile = unsafe_speed_crashes/length_total)
 
 ```
-
+Pick out the top 50 in crashes per mile and total crashes
 ```{r}
 
 top50 <- street_sum %>%
-  filter(prop_25 >= 0.7, total_crashes >=35, length_total >= 250) %>% 
+  filter(prop_25 >= 0.7, total_crashes >=35, length_total >= 250) %>% #just streets that are mostly 25mph, and are long enough and have enough crashes to be relevant here
   arrange(desc(speedcrash_pmile)) %>% 
   head(50)
 
-write_csv(top50, url = "top50_speedcrashpmile.csv")
-
-top50raw <- street_sum %>%
-  filter(prop_25 >= 0.7, total_crashes >=35, length_total >= 250) %>% 
-  arrange(desc(unsafe_speed_crashes)) %>% 
-  head(50)
-
-#%>% 
- # left_join(speed_limits_borough %>% select(boro_name, street, the_geom), by = c("borough" = "boro_name", ))
+write_csv(top50, "top50_speedcrashpmile.csv")
 
 
 ```
 
-
+Map them and save with leaflet
 ```{r}
 
-top50_map <- leaflet(top50) %>% 
+tag.map.title <- tags$style(HTML("
+  .leaflet-control.map-title {
+    position: fixed !important;
+    padding: 10px;
+    background: rgba(255,255,255,0.8);
+    color: black;
+    border-radius: 5px;
+  }
+  h2 {
+    padding: 0px;
+    margin: 0px;
+    font-size: 30px;
+  }
+  span {
+    font-weight: 800;
+    color: red;
+  }
+  p {
+    font-size: 20px;
+    margin: 0px;
+    padding: 10px;
+  }
+"))
+
+title <- tags$div(
+  tag.map.title, HTML("<h2>NYC's dangerous 25mph streets</h2><br><p>25mph streets with the most collisions per mile caused by unsafe speed<br><span>Select a street</span> to view the number of collisions since 2019</p>")
+)  
+
+top50_map <- leaflet(top50, options = leafletOptions(zoomControl = FALSE)) %>% 
   addProviderTiles(provider = "CartoDB.Positron") %>% 
   addPolylines(color = "red", opacity = 0.7,
                popup = ~paste0(street,
@@ -148,14 +168,12 @@ top50_map <- leaflet(top50) %>%
                                total_crashes, " total collisions <br>",
                                unsafe_speed_crashes, " collisions caused by unsafe speed"),
                group = "Most speeding collisions per mile") %>% 
-  addPolylines(data = top50raw, color = "red", opacity = 0.7,
-               popup = ~paste0(street,
-                               "<br><b>Since January 2019</b><br>",
-                               total_crashes, " total collisions <br>",
-                               unsafe_speed_crashes, " collisions caused by unsafe speed"),
-               group = "Most total speeding collisions") %>% 
-  addLayersControl(baseGroups = c("Most speeding collisions per mile", "Most total speeding collisions"),
-                  options = layersControlOptions(collapsed = F))
+  addControl(title,
+             className = "map-title",
+             position = "topleft") %>% 
+  htmlwidgets::onRender("function(el, x) {
+        L.control.zoom({ position: 'topright' }).addTo(this)
+    }") 
 
 top50_map
 
