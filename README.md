@@ -11,6 +11,6 @@ Borough boundaries - https://data.cityofnewyork.us/City-Government/Borough-Bound
 
 Streets in the top 50 have to have at least 35 crashes since 2019, be beyond a minimum length, and be primarily 25mph speed limits (70% or more of the street length is 25mph)
 
-Not all street crashes could be assigned to the correct street in the speed limit data due to data constraints. Many collisions are missing location data, or have various street name data entry errors. I've cleaned up some obvious errors but this does not reflect the full universe of crashes as not all could be matched.
+Not all street crashes could be assigned to the correct street in the speed limit data due to data constraints. Many collisions are missing location data, or have various street name data entry errors. I've cleaned up some obvious errors but this does not reflect the full universe of crashes as not all could be matched. As a result, these numbers may undercount the number of collisions on a given street.
 
 Data on crash reason is sometimes unreliable, missing, or "unspecified". With better data this list could be improved.
