@@ -76,7 +76,7 @@ streets_speeds <- speed_limits_borough %>%
   mutate(street = if_else(street == "DE KALB AVENUE", "DEKALB AVENUE", street)) %>% 
   group_by(boro_name, street) %>% 
   summarize(min_speed = min(postvz_sl, na.rm = T),
-            max_speed = min(postvz_sl, na.rm = T),
+            max_speed = max(postvz_sl, na.rm = T),
             length_25 = sum(shape_leng[postvz_sl == 25], na.rm = T),
             length_total = sum(shape_leng, na.rm = T),
             geometry = st_union(the_geom)) %>% 
