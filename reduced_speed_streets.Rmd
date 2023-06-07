@@ -141,11 +141,13 @@ street_sum %>% as.data.frame() %>%  group_by(prop_25 >= .7) %>% summarize(crashe
                                                                         length = sum(length_total)) %>% 
   janitor::adorn_totals()
 
-street_sum %>% as.data.frame() %>%  filter(prop_25 >= .7) %>%
+street_sum %>% as.data.frame() %>%
   group_by(street %in% top50$street) %>%
   summarize(crashes = sum(unsafe_speed_crashes),
                         tcrashes = sum(total_crashes),
             length = sum(length_total),
+             killed = sum(killed, na.rm = T),
+                                                                        injured = sum(injured, na.rm = T),
             n = n()) %>% 
   janitor::adorn_totals()
 
