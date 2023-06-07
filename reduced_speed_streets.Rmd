@@ -57,11 +57,12 @@ crash_data_missing_boro <- crash_data_sf %>%
 Stats for blog
 
 ```{r}
-crash_data %>% count(contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed")
+#crash_data %>% count(contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed")
 
-crash_data %>% filter(contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed") %>% 
-  summarize(killed = sum(number_of_persons_killed),
-            injured = sum(number_of_cyclist_injured))
+crash_data %>% #filter(contributing_factor_vehicle_1 == "Unsafe Speed" | contributing_factor_vehicle_2 == "Unsafe Speed") %>% 
+  summarize(collisions = n(),
+    killed = sum(number_of_persons_killed),
+            injured = sum(number_of_persons_injured, na.rm = T))
 ```
 
 
@@ -133,8 +134,12 @@ street_sum <- crashes_streets_speed %>%
 ```
 Stat for blog
 ```{r}
-street_sum %>% as.data.frame() %>%  filter(prop_25 >= .7) %>% summarize(crashes = sum(unsafe_speed_crashes),
-                                                                        tcrashes = sum(total_crashes))
+street_sum %>% as.data.frame() %>%  group_by(prop_25 >= .7) %>% summarize(crashes = sum(unsafe_speed_crashes),
+                                                                        tcrashes = sum(total_crashes),
+                                                                        killed = sum(killed, na.rm = T),
+                                                                        injured = sum(injured, na.rm = T),
+                                                                        length = sum(length_total)) %>% 
+  janitor::adorn_totals()
 
 street_sum %>% as.data.frame() %>%  filter(prop_25 >= .7) %>%
   group_by(street %in% top50$street) %>%
@@ -153,10 +158,10 @@ Pick out the top 50 in crashes per mile and total crashes
 
 top50 <- street_sum %>%
   filter(prop_25 >= 0.7, total_crashes >=35, length_total >= 250) %>% #just streets that are mostly 25mph, and are long enough and have enough crashes to be relevant here
-  arrange(desc(speedcrash_pmile)) %>% 
+  arrange(desc(crash_pmile)) %>% 
   head(50)
 
-write_csv(top50, "top50_speedcrashpmile.csv")
+write_csv(top50, "top50_crashpmile.csv")
 
 top50 %>% as.data.frame() %>%  summarize(crashes = sum(unsafe_speed_crashes),
                                          tcrashes = sum(total_crashes))
@@ -174,10 +179,12 @@ tag.map.title <- tags$style(HTML("
     color: black;
     border-radius: 5px;
   }
-  h2 {
+  .title {
     padding: 0px;
     margin: 0px;
     font-size: 30px;
+    margin-block: 0px;
+    font-weight: 800;
   }
   span {
     font-weight: 800;
@@ -187,11 +194,15 @@ tag.map.title <- tags$style(HTML("
     font-size: 20px;
     margin: 0px;
     padding: 10px;
+    margin-block: 0px;
+  }
+  img {
+  max-width: 640px
   }
 "))
 
 title <- tags$div(
-  tag.map.title, HTML("<h2>NYC's dangerous 25mph streets</h2><br><p>25 mph streets with the most collisions per mile caused by unsafe speed<br><span>Select a street</span> to view the number of collisions since 2019</p>")
+  tag.map.title, HTML("<img src = https://patrickspauster.com/images/streetsblog-logo.png><p class = 'title'>NYC's Most-Dangerous 25 MPH Streets</p><p>25 MPH streets with the most collisions per mile<br><span>Select a street</span> to view the number of collisions since 2019</p>")
 )  
 
 top50_map <- leaflet(top50, options = leafletOptions(zoomControl = FALSE)) %>% 
@@ -200,8 +211,11 @@ top50_map <- leaflet(top50, options = leafletOptions(zoomControl = FALSE)) %>%
                popup = ~paste0(street,
                                "<br><b>Since 2019</b><br>",
                                total_crashes, " total collisions <br>",
-                               unsafe_speed_crashes, " collisions caused by unsafe speed"),
-               group = "Most speeding collisions per mile") %>% 
+                               injured, " people injured <br>",
+                               killed, " people killed"
+                               #unsafe_speed_crashes, " collisions caused by unsafe speed"
+                               ),
+               group = "Most collisions per mile") %>% 
   addControl(title,
              className = "map-title",
              position = "topleft") %>% 
@@ -212,6 +226,7 @@ top50_map <- leaflet(top50, options = leafletOptions(zoomControl = FALSE)) %>%
 top50_map
 
 mapview::mapshot(top50_map, url = "map.html", file = "top50.png")
+
 
 ```
 
