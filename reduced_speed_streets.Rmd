@@ -184,7 +184,7 @@ tag.map.title <- tags$style(HTML("
   .title {
     padding: 0px;
     margin: 0px;
-    font-size: 30px;
+    font-size: 20px;
     margin-block: 0px;
     font-weight: 800;
   }
@@ -193,14 +193,20 @@ tag.map.title <- tags$style(HTML("
     color: red;
   }
   p {
-    font-size: 20px;
+    font-size: 15px;
     margin: 0px;
     padding: 10px;
     margin-block: 0px;
   }
   img {
-  max-width: 640px
+  max-width: 428px
   }
+  @media (max-width:475px) {
+  img {max-width:280px}
+  .title {font-size: 13px}
+  p {font-size: 9px}
+  }
+  
 "))
 
 title <- tags$div(
@@ -222,7 +228,7 @@ top50_map <- leaflet(top50, options = leafletOptions(zoomControl = FALSE)) %>%
              className = "map-title",
              position = "topleft") %>% 
   htmlwidgets::onRender("function(el, x) {
-        L.control.zoom({ position: 'topright' }).addTo(this)
+        L.control.zoom({ position: 'bottomright' }).addTo(this)
     }") 
 
 top50_map
