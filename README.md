@@ -4,6 +4,8 @@ With Sammy's Law up for consideration in this legislative session, I identified 
 
 The output of this repository is a leaflet interactive map with the 50 streets highlighted and popups showing crash data.
 
+Map is hosted github pages here: https://pspauster.github.io/twenty-mph-streets/map.html
+
 ## Technical Notes:
 Data on collisions - https://data.cityofnewyork.us/Public-Safety/Motor-Vehicle-Collisions-Crashes/h9gi-nx95
 Data on speed limits - https://data.cityofnewyork.us/Transportation/VZV_Speed-Limits/7n5j-865y
